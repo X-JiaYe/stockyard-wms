@@ -18,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DuplicateKeyException;
 
 import java.math.BigDecimal;
 
@@ -26,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -111,6 +113,19 @@ class StockServiceImplTest {
                 .isInstanceOf(BizException.class)
                 .hasMessageContaining("库存不足");
         verify(stockLedgerMapper, never()).insert(any(StockLedger.class));
+        verify(stockBalanceMapper, never()).updateQuantity(anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("重复入账：幂等唯一索引冲突被转为业务异常")
+    void changeStock_duplicateLedger_rejected() {
+        when(stockBalanceMapper.selectForUpdate(WH, SKU, "", LOC)).thenReturn(balance(1L, "10"));
+        doThrow(new DuplicateKeyException("uk_stock_ledger_idem"))
+                .when(stockLedgerMapper).insert(any(StockLedger.class));
+
+        assertThatThrownBy(() -> stockService.changeStock(changeReq("5", StockDirection.IN.getValue())))
+                .isInstanceOf(BizException.class)
+                .hasMessageContaining("重复入账");
         verify(stockBalanceMapper, never()).updateQuantity(anyLong(), any());
     }
 

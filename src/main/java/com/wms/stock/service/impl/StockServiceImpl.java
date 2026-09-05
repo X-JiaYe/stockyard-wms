@@ -17,6 +17,7 @@ import com.wms.stock.mapper.StockLedgerMapper;
 import com.wms.stock.service.StockService;
 import com.wms.system.security.AuthContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -78,7 +79,13 @@ public class StockServiceImpl implements StockService {
         ledger.setRefLineId(req.getRefLineId());
         ledger.setCreatedAt(LocalDateTime.now());
         ledger.setCreatedBy(req.getCreatedBy());
-        stockLedgerMapper.insert(ledger);
+        // 幂等兜底：uk_stock_ledger_idem 唯一索引拦截同一单据对同一库存维度的重复入账
+        try {
+            stockLedgerMapper.insert(ledger);
+        } catch (DuplicateKeyException e) {
+            throw new BizException("重复入账：单据 " + req.getRefType() + "/" + req.getRefNo()
+                    + " 已对当前库存维度入账，拒绝重复变动");
+        }
 
         // 4. 同步聚合到 balance 快照
         stockBalanceMapper.updateQuantity(bal.getId(), newQty);
