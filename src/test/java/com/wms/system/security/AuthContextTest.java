@@ -8,13 +8,18 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * AuthContext 鉴权分支单测：管理员 / null / 非管理员 / 匹配 / 不匹配 / 收敛。
+ * AuthContext 鉴权分支单测：角色判定 / null / 匹配 / 不匹配 / 收敛。
  */
 class AuthContextTest {
 
@@ -32,12 +37,14 @@ class AuthContextTest {
         SecurityContextHolder.clearContext();
     }
 
-    private void login(Long warehouseId) {
+    private void login(Long warehouseId, boolean admin) {
         SysUser user = new SysUser();
         user.setWarehouseId(warehouseId);
-        LoginUser loginUser = new LoginUser(user);
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        authorities.add(new SimpleGrantedAuthority(admin ? "ROLE_ADMIN" : "ROLE_OPERATOR"));
+        LoginUser loginUser = new LoginUser(user, authorities);
         Authentication auth = new UsernamePasswordAuthenticationToken(
-                loginUser, null, loginUser.getAuthorities());
+                loginUser, null, authorities);
         SecurityContextHolder.getContext().setAuthentication(auth);
     }
 
@@ -49,30 +56,30 @@ class AuthContextTest {
     }
 
     @Test
-    @DisplayName("warehouseId=null 视为管理员")
-    void isAdmin_nullWarehouse_true() {
-        login(null);
+    @DisplayName("拥有 ROLE_ADMIN 即管理员（不依赖 warehouse_id）")
+    void isAdmin_byRole() {
+        login(null, true);
         assertThat(authContext.isAdmin()).isTrue();
     }
 
     @Test
-    @DisplayName("warehouseId 非空视为普通用户")
-    void isAdmin_boundWarehouse_false() {
-        login(WH);
+    @DisplayName("OPERATOR 非管理员")
+    void isAdmin_operator_false() {
+        login(WH, false);
         assertThat(authContext.isAdmin()).isFalse();
     }
 
     @Test
     @DisplayName("requireAdmin：管理员放行")
     void requireAdmin_admin_passes() {
-        login(null);
+        login(null, true);
         authContext.requireAdmin();
     }
 
     @Test
     @DisplayName("requireAdmin：普通用户拒绝")
     void requireAdmin_operator_denied() {
-        login(WH);
+        login(WH, false);
         assertThatThrownBy(authContext::requireAdmin)
                 .isInstanceOf(AccessDeniedException.class);
     }
@@ -80,7 +87,7 @@ class AuthContextTest {
     @Test
     @DisplayName("checkWarehouse：管理员对任意仓放行")
     void checkWarehouse_admin_passes() {
-        login(null);
+        login(null, true);
         authContext.checkWarehouse(null);
         authContext.checkWarehouse(999L);
     }
@@ -88,14 +95,14 @@ class AuthContextTest {
     @Test
     @DisplayName("checkWarehouse：普通用户命中本仓放行")
     void checkWarehouse_operator_ownWarehouse_passes() {
-        login(WH);
+        login(WH, false);
         authContext.checkWarehouse(WH);
     }
 
     @Test
     @DisplayName("checkWarehouse：普通用户跨仓拒绝")
     void checkWarehouse_operator_otherWarehouse_denied() {
-        login(WH);
+        login(WH, false);
         assertThatThrownBy(() -> authContext.checkWarehouse(2L))
                 .isInstanceOf(AccessDeniedException.class);
     }
@@ -103,7 +110,7 @@ class AuthContextTest {
     @Test
     @DisplayName("checkWarehouse：普通用户目标仓为 null 拒绝")
     void checkWarehouse_operator_nullWarehouse_denied() {
-        login(WH);
+        login(WH, false);
         assertThatThrownBy(() -> authContext.checkWarehouse(null))
                 .isInstanceOf(AccessDeniedException.class);
     }
@@ -111,7 +118,7 @@ class AuthContextTest {
     @Test
     @DisplayName("scopeWarehouse：管理员保持原值（可 null）")
     void scopeWarehouse_admin_keepsValue() {
-        login(null);
+        login(null, true);
         assertThat(authContext.scopeWarehouse(null)).isNull();
         assertThat(authContext.scopeWarehouse(5L)).isEqualTo(5L);
     }
@@ -119,21 +126,21 @@ class AuthContextTest {
     @Test
     @DisplayName("scopeWarehouse：普通用户 null 收敛到本仓")
     void scopeWarehouse_operator_null_converges() {
-        login(WH);
+        login(WH, false);
         assertThat(authContext.scopeWarehouse(null)).isEqualTo(WH);
     }
 
     @Test
     @DisplayName("scopeWarehouse：普通用户本仓保持")
     void scopeWarehouse_operator_ownWarehouse_keeps() {
-        login(WH);
+        login(WH, false);
         assertThat(authContext.scopeWarehouse(WH)).isEqualTo(WH);
     }
 
     @Test
     @DisplayName("scopeWarehouse：普通用户跨仓拒绝")
     void scopeWarehouse_operator_otherWarehouse_denied() {
-        login(WH);
+        login(WH, false);
         assertThatThrownBy(() -> authContext.scopeWarehouse(2L))
                 .isInstanceOf(AccessDeniedException.class);
     }

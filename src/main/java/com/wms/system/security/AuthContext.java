@@ -29,7 +29,8 @@ public class AuthContext {
     }
 
     public boolean isAdmin() {
-        return currentWarehouseId() == null;
+        return currentUser().getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
     }
 
     /** 管理员才放行，否则 403。 */
