@@ -3,6 +3,8 @@
 面向企业内部的仓储管理系统（WMS），**模块化单体**架构，单仓起步、架构上规划多仓扩展。
 
 > 该项目聚焦后端核心能力：库存账实一致、并发正确性、多仓数据隔离、权限模型与架构边界。
+>
+> 集成定位：上游对接 ERP（SAP / 金蝶），下游对接设备层（AGV / 立库 / RF 手持 / WCS），通过消息事件解耦，不让外部模型渗入仓储领域模型。
 
 ## 技术栈
 
@@ -22,6 +24,23 @@
 > 中间件「按需接入、各有其职」：Redis 补无状态 JWT 无法主动失效的缺口，RabbitMQ 解耦出入库完成通知；二者不可用时均不阻断核心出入库链路（见「核心设计」）。
 
 ## 架构
+
+集成上下文：
+
+```
+   SAP / 金蝶 ERP
+        │  事件 / MQ（ASN 入 · 出库单出 · 状态回写）
+        ▼
+   ┌────────────────────────────────────────────┐
+   │            WMS 核心（模块化单体）              │
+   │  基础数据 │ 入库 │ 出库 │ 库存 │ 系统管理 │ 看板 │
+   └────────────────────┬───────────────────────┘
+                        │  任务 / MQ
+                        ▼
+   WCS / 设备层（AGV · 立库 · RF 手持 · PLC）
+```
+
+代码层模块结构：
 
 ```
                     ┌──────────────────────────────────────┐
@@ -80,28 +99,67 @@
 - 上架落库存 / 出库发运完成后发布 `DomainEvent`，经 `@TransactionalEventListener(AFTER_COMMIT)` 在事务提交后才投递 RabbitMQ，规避「MQ 已发但本地事务回滚」的不一致。
 - 消费端模拟 ERP/WCS 适配器异步订阅；投递失败仅告警、不阻断主流程（通知型事件，可靠性由 MQ 持久化 + 消费重试兜底）。
 
+## 当前范围与边界
+
+为保证核心链路（库存账实一致）的深度，以下能力**当前明确不做**，留待按业务需要演进：
+
+- 波次规划 / 质检独立流程 / 上架策略 / 3PL 计费 —— 广度堆功能会稀释核心深度。
+- XXL-Job —— 暂无定时任务真实场景。
+- 微服务拆分 / Spring Cloud Alibaba —— 与「模块化单体」定位冲突，边界由 ArchUnit 固化，随业务需要再按域拆分。
+
+演进方向：单仓 → 多仓（`warehouse_id` 已贯穿全部库存表）；ERP/WCS 适配层随接入逐步补全。
+
 ## 数据库
 
 核心表：`warehouse / zone / location / sku`（主数据）、`stock_ledger / stock_balance`（库存）、`inbound_asn / asn_line / receive`（入库）、`outbound_order / order_line`（出库）、`sys_user / sys_role / sys_permission / sys_user_role / sys_role_permission`（权限）。
 
 铁律：库存表带 `warehouse_id`；ledger 不可变；主键雪花 ID；业务表逻辑删除（`deleted`）；变更走 Flyway（`V1`~`V8`）。
 
-## 快速开始
+## 本地部署
+
+### 前置依赖
+
+| 依赖 | 版本要求 | 用途 |
+|---|---|---|
+| JDK | 21 | 后端运行 |
+| Maven | 3.8+ | 后端构建 |
+| Node.js | 18+ | 前端构建（可选，仅跑界面需要） |
+| Docker + Compose | — | 运行 PostgreSQL / Redis / RabbitMQ |
+
+### 1. 启动依赖中间件
 
 ```bash
-# 1. 启动依赖（PostgreSQL + Redis + RabbitMQ）
 docker compose up -d postgres redis rabbitmq
-
-# 2. 启动后端（JDK 21 + Maven）
-mvn spring-boot:run
-
-# 3.（可选）启动前端
-cd frontend && npm install && npm run dev
 ```
 
-- 后端服务：`http://localhost:8080/api`
-- 前端界面：`http://localhost:5173`（开发期 `/api` 已代理到 8080）
-- 首次启动 Flyway 自动建表并写入示例数据（1 仓库 / 15 物料 / 8 货位），默认账号 `admin / admin123`
+| 服务 | 镜像 | 端口 | 凭据 |
+|---|---|---|---|
+| PostgreSQL | postgres:15-alpine | 5432 | 库/用户/密码 `wms` / `wms123456` |
+| Redis | redis:7-alpine | 6379 | 无密码，AOF 持久化 |
+| RabbitMQ | rabbitmq:3.13-management | 5672（AMQP）/ 15672（管理台） | `wms` / `wms123456` |
+
+### 2. 启动后端
+
+```bash
+# 可选：注入生产密钥；默认值仅供本地开发
+export WMS_JWT_SECRET="your-production-secret"
+
+mvn spring-boot:run
+```
+
+- 首次启动 Flyway 自动建表并写入示例数据（1 仓库 / 15 物料 / 8 货位）。
+- 后端地址：`http://localhost:8080/api`，健康/信息端点经 Actuator 暴露（`health` / `info`）。
+- 默认账号：`admin / admin123`。
+
+### 3.（可选）启动前端
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+- 前端地址：`http://localhost:5173`（开发期 `/api` 已代理到 `http://localhost:8080`）。
 
 ## 测试
 
