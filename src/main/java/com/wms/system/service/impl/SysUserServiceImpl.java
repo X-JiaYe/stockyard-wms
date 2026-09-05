@@ -68,15 +68,24 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             if (roles.isEmpty()) {
                 throw new BizException("角色不能为空");
             }
-            Long warehouseId = entity.getWarehouseId();
-            if (warehouseId == null) {
-                SysUser db = getById(entity.getId());
-                warehouseId = db == null ? null : db.getWarehouseId();
-            }
-            if (!roles.contains(ROLE_ADMIN) && warehouseId == null) {
-                throw new BizException("非管理员用户必须绑定仓库");
+            if (roles.contains(ROLE_ADMIN)) {
+                entity.setWarehouseId(null); // 管理员全局，显式清空仓库
+            } else {
+                Long warehouseId = entity.getWarehouseId();
+                if (warehouseId == null) {
+                    SysUser db = getById(entity.getId());
+                    warehouseId = db == null ? null : db.getWarehouseId();
+                    entity.setWarehouseId(warehouseId);
+                }
+                if (warehouseId == null) {
+                    throw new BizException("非管理员用户必须绑定仓库");
+                }
             }
             bindRoles(entity.getId(), roles);
+        } else if (entity.getWarehouseId() == null) {
+            // 未传角色也未传仓库：回填现有仓库，避免 ALWAYS 策略误清空
+            SysUser db = getById(entity.getId());
+            entity.setWarehouseId(db == null ? null : db.getWarehouseId());
         }
         return super.updateById(entity);
     }

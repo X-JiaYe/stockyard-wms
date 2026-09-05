@@ -149,4 +149,35 @@ class SysUserServiceImplTest {
                 .hasMessageContaining("非管理员用户必须绑定仓库");
         verify(sysUserMapper, never()).updateById(any(SysUser.class));
     }
+
+    @Test
+    @DisplayName("更新：改为管理员角色时清空仓库归属")
+    void updateById_adminRole_clearsWarehouse() {
+        when(sysRoleMapper.selectOne(any())).thenReturn(role("ADMIN"));
+        SysUser user = new SysUser();
+        user.setId(1L);
+        user.setWarehouseId(5L); // 原为操作员绑定的仓库
+        user.setRoleCodes(List.of("ADMIN"));
+
+        sysUserService.updateById(user);
+
+        assertThat(user.getWarehouseId()).isNull();
+        verify(sysUserMapper).updateById(user);
+    }
+
+    @Test
+    @DisplayName("更新：未传角色未传仓库时保留现有仓库")
+    void updateById_noRolesNoWarehouse_keepsExisting() {
+        SysUser db = new SysUser();
+        db.setWarehouseId(3L);
+        when(sysUserMapper.selectById(1L)).thenReturn(db);
+        SysUser user = new SysUser();
+        user.setId(1L);
+        user.setNickname("新昵称");
+
+        sysUserService.updateById(user);
+
+        assertThat(user.getWarehouseId()).isEqualTo(3L);
+        verify(sysUserMapper).updateById(user);
+    }
 }
