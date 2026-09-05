@@ -11,6 +11,7 @@ import com.wms.outbound.entity.OutboundOrderLine;
 import com.wms.outbound.service.OutboundService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -24,6 +25,7 @@ public class OutboundController {
     private final OutboundService outboundService;
 
     @PostMapping("/orders")
+    @PreAuthorize("hasAuthority('outbound:manage')")
     public Result<OutboundOrder> createOrder(@Valid @RequestBody OrderCreateRequest req) {
         return Result.ok(outboundService.createOrder(req));
     }
@@ -42,11 +44,13 @@ public class OutboundController {
     }
 
     @PostMapping("/pick")
+    @PreAuthorize("hasAuthority('outbound:manage')")
     public Result<OutboundOrderLine> pick(@Valid @RequestBody PickRequest req) {
         return Result.ok(outboundService.pick(req));
     }
 
     @PostMapping("/ship")
+    @PreAuthorize("hasAuthority('outbound:manage')")
     public Result<OutboundOrder> ship(@Valid @RequestBody ShipRequest req) {
         return Result.ok(outboundService.ship(req));
     }

@@ -6,8 +6,8 @@ import com.wms.base.entity.Warehouse;
 import com.wms.base.service.WarehouseService;
 import com.wms.common.result.PageResult;
 import com.wms.common.result.Result;
-import com.wms.system.security.AuthContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.*;
 public class WarehouseController {
 
     private final WarehouseService warehouseService;
-    private final AuthContext authContext;
 
     @GetMapping
     public Result<PageResult<Warehouse>> page(@RequestParam(defaultValue = "1") long pageNum,
@@ -37,23 +36,23 @@ public class WarehouseController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('base:manage')")
     public Result<Void> create(@RequestBody Warehouse warehouse) {
-        authContext.requireAdmin();
         warehouseService.save(warehouse);
         return Result.ok();
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('base:manage')")
     public Result<Void> update(@PathVariable Long id, @RequestBody Warehouse warehouse) {
-        authContext.requireAdmin();
         warehouse.setId(id);
         warehouseService.updateById(warehouse);
         return Result.ok();
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('base:manage')")
     public Result<Void> delete(@PathVariable Long id) {
-        authContext.requireAdmin();
         warehouseService.removeById(id);
         return Result.ok();
     }

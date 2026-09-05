@@ -11,6 +11,7 @@ import com.wms.inbound.entity.InboundAsnLine;
 import com.wms.inbound.service.InboundService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -24,6 +25,7 @@ public class InboundController {
     private final InboundService inboundService;
 
     @PostMapping("/asns")
+    @PreAuthorize("hasAuthority('inbound:manage')")
     public Result<InboundAsn> createAsn(@Valid @RequestBody AsnCreateRequest req) {
         return Result.ok(inboundService.createAsn(req));
     }
@@ -42,11 +44,13 @@ public class InboundController {
     }
 
     @PostMapping("/receive")
+    @PreAuthorize("hasAuthority('inbound:manage')")
     public Result<InboundAsnLine> receive(@Valid @RequestBody ReceiveRequest req) {
         return Result.ok(inboundService.receive(req));
     }
 
     @PostMapping("/putaway")
+    @PreAuthorize("hasAuthority('inbound:manage')")
     public Result<InboundAsnLine> putaway(@Valid @RequestBody PutawayRequest req) {
         return Result.ok(inboundService.putaway(req));
     }

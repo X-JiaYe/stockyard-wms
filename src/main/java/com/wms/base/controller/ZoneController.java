@@ -8,6 +8,7 @@ import com.wms.common.result.PageResult;
 import com.wms.common.result.Result;
 import com.wms.system.security.AuthContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -41,23 +42,23 @@ public class ZoneController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('base:manage')")
     public Result<Void> create(@RequestBody Zone zone) {
-        authContext.requireAdmin();
         zoneService.save(zone);
         return Result.ok();
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('base:manage')")
     public Result<Void> update(@PathVariable Long id, @RequestBody Zone zone) {
-        authContext.requireAdmin();
         zone.setId(id);
         zoneService.updateById(zone);
         return Result.ok();
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('base:manage')")
     public Result<Void> delete(@PathVariable Long id) {
-        authContext.requireAdmin();
         zoneService.removeById(id);
         return Result.ok();
     }

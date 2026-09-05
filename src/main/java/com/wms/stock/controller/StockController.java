@@ -14,6 +14,7 @@ import com.wms.stock.enums.StockDirection;
 import com.wms.stock.service.StockService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -27,29 +28,34 @@ public class StockController {
     private final StockService stockService;
 
     @PostMapping("/inbound")
+    @PreAuthorize("hasAuthority('stock:manage')")
     public Result<StockBalance> inbound(@Valid @RequestBody StockOpRequest req) {
         return Result.ok(stockService.changeStock(toChange(req, req.getQuantity(),
                 StockDirection.IN.getValue(), req.getRefType() == null ? RefType.RECEIVE.getValue() : req.getRefType())));
     }
 
     @PostMapping("/outbound")
+    @PreAuthorize("hasAuthority('stock:manage')")
     public Result<StockBalance> outbound(@Valid @RequestBody StockOpRequest req) {
         return Result.ok(stockService.changeStock(toChange(req, req.getQuantity().negate(),
                 StockDirection.OUT.getValue(), req.getRefType() == null ? RefType.PICK.getValue() : req.getRefType())));
     }
 
     @PostMapping("/adjust")
+    @PreAuthorize("hasAuthority('stock:manage')")
     public Result<StockBalance> adjust(@Valid @RequestBody StockChangeRequest req) {
         return Result.ok(stockService.changeStock(req));
     }
 
     @PostMapping("/move")
+    @PreAuthorize("hasAuthority('stock:manage')")
     public Result<Void> move(@Valid @RequestBody StockMoveRequest req) {
         stockService.move(req);
         return Result.ok();
     }
 
     @PostMapping("/count")
+    @PreAuthorize("hasAuthority('stock:manage')")
     public Result<StockBalance> count(@Valid @RequestBody StockCountRequest req) {
         return Result.ok(stockService.count(req));
     }
