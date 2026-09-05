@@ -26,6 +26,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final UserDetailsServiceImpl userDetailsService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
@@ -33,6 +34,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String header = request.getHeader("Authorization");
         if (StringUtils.hasText(header) && header.startsWith(PREFIX)) {
             String token = header.substring(PREFIX.length());
+            // 登出黑名单命中则直接放行（不带认证），由鉴权链返回 401
+            if (tokenBlacklistService.isBlacklisted(jwtUtil.getJti(token))) {
+                chain.doFilter(request, response);
+                return;
+            }
             String username = jwtUtil.getUsername(token);
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 try {

@@ -1,5 +1,7 @@
 package com.wms.outbound.service.impl;
 
+import com.wms.common.event.DomainEvent;
+import com.wms.common.event.DomainEventPublisher;
 import com.wms.common.exception.BizException;
 import com.wms.outbound.dto.PickRequest;
 import com.wms.outbound.dto.ShipRequest;
@@ -45,12 +47,15 @@ class OutboundServiceImplTest {
     private StockService stockService;
     @Mock
     private AuthContext authContext;
+    @Mock
+    private DomainEventPublisher domainEventPublisher;
 
     private OutboundServiceImpl outboundService;
 
     @BeforeEach
     void setUp() {
-        outboundService = new OutboundServiceImpl(orderMapper, orderLineMapper, stockService, authContext);
+        outboundService = new OutboundServiceImpl(orderMapper, orderLineMapper, stockService, authContext,
+                domainEventPublisher);
     }
 
     private OutboundOrderLine line(Long id, Long orderId, String orderQty, String pickedQty) {
@@ -159,5 +164,6 @@ class OutboundServiceImplTest {
 
         assertThat(result.getStatus()).isEqualTo(OutboundStatus.SHIPPED.getValue());
         verify(orderMapper).updateById(any(OutboundOrder.class));
+        verify(domainEventPublisher).publish(any(DomainEvent.class));
     }
 }

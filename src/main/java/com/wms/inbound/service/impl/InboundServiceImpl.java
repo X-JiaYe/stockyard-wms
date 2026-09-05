@@ -2,6 +2,8 @@ package com.wms.inbound.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.wms.common.event.DomainEvent;
+import com.wms.common.event.DomainEventPublisher;
 import com.wms.common.exception.BizException;
 import com.wms.common.result.PageResult;
 import com.wms.inbound.dto.AsnCreateRequest;
@@ -31,6 +33,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -45,6 +48,7 @@ public class InboundServiceImpl implements InboundService {
     private final InboundReceiveMapper receiveMapper;
     private final StockService stockService;
     private final AuthContext authContext;
+    private final DomainEventPublisher domainEventPublisher;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -182,6 +186,10 @@ public class InboundServiceImpl implements InboundService {
         asnLineMapper.updateById(line);
 
         refreshAsnStatus(line.getAsnId());
+
+        // 上架落库存完成 → 领域事件（事务提交后投递 MQ，通知 ERP/WCS）
+        domainEventPublisher.publish(DomainEvent.of("inbound.putaway", asn.getWarehouseId(), asn.getAsnNo(),
+                Map.of("skuId", line.getSkuId(), "qty", qty, "locationId", req.getLocationId())));
         return line;
     }
 

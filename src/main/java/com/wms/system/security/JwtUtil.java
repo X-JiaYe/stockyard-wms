@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.UUID;
 
 /**
  * JWT 工具：签发与解析。
@@ -31,6 +32,7 @@ public class JwtUtil {
         Date exp = new Date(now.getTime() + expireSeconds * 1000);
         return Jwts.builder()
                 .subject(username)
+                .id(UUID.randomUUID().toString())   // jti：唯一标识，登出黑名单用
                 .issuedAt(now)
                 .expiration(exp)
                 .signWith(key())
@@ -41,13 +43,37 @@ public class JwtUtil {
      * 解析并校验 token，非法或过期时返回 null。
      */
     public String getUsername(String token) {
+        Claims claims = parse(token);
+        return claims == null ? null : claims.getSubject();
+    }
+
+    /**
+     * 取 token 的唯一标识 jti，非法时返回 null（登出黑名单的键）。
+     */
+    public String getJti(String token) {
+        Claims claims = parse(token);
+        return claims == null ? null : claims.getId();
+    }
+
+    /**
+     * 取 token 剩余有效秒数（用于黑名单 TTL，让其随 token 一起自然过期）。
+     */
+    public long getRemainingTtlSeconds(String token) {
+        Claims claims = parse(token);
+        if (claims == null || claims.getExpiration() == null) {
+            return 0;
+        }
+        long remainMs = claims.getExpiration().getTime() - System.currentTimeMillis();
+        return remainMs <= 0 ? 0 : remainMs / 1000;
+    }
+
+    private Claims parse(String token) {
         try {
-            Claims claims = Jwts.parser()
+            return Jwts.parser()
                     .verifyWith(key())
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
-            return claims.getSubject();
         } catch (Exception e) {
             return null;
         }

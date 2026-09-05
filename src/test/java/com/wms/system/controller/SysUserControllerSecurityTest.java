@@ -4,6 +4,7 @@ import com.wms.support.WithMockLoginUser;
 import com.wms.system.security.JwtAuthenticationFilter;
 import com.wms.system.security.JwtUtil;
 import com.wms.system.security.SecurityConfig;
+import com.wms.system.security.TokenBlacklistService;
 import com.wms.system.security.UserDetailsServiceImpl;
 import com.wms.system.service.SysUserService;
 import org.junit.jupiter.api.DisplayName;
@@ -35,6 +36,9 @@ class SysUserControllerSecurityTest {
 
     @MockBean
     private UserDetailsServiceImpl userDetailsService;
+
+    @MockBean
+    private TokenBlacklistService tokenBlacklistService;
 
     @Test
     @DisplayName("未认证访问系统管理接口返回 401")

@@ -1,5 +1,7 @@
 package com.wms.inbound.service.impl;
 
+import com.wms.common.event.DomainEvent;
+import com.wms.common.event.DomainEventPublisher;
 import com.wms.common.exception.BizException;
 import com.wms.inbound.dto.PutawayRequest;
 import com.wms.inbound.dto.ReceiveRequest;
@@ -49,12 +51,15 @@ class InboundServiceImplTest {
     private StockService stockService;
     @Mock
     private AuthContext authContext;
+    @Mock
+    private DomainEventPublisher domainEventPublisher;
 
     private InboundServiceImpl inboundService;
 
     @BeforeEach
     void setUp() {
-        inboundService = new InboundServiceImpl(asnMapper, asnLineMapper, receiveMapper, stockService, authContext);
+        inboundService = new InboundServiceImpl(asnMapper, asnLineMapper, receiveMapper, stockService, authContext,
+                domainEventPublisher);
     }
 
     private InboundAsnLine line(Long id, Long asnId, String received, String qualified, String putaway) {
@@ -193,5 +198,6 @@ class InboundServiceImplTest {
         assertThat(cap.getValue().getDirection()).isEqualTo(StockDirection.IN.getValue());
         assertThat(cap.getValue().getRefType()).isEqualTo(RefType.PUTAWAY.getValue());
         assertThat(cap.getValue().getLocationId()).isEqualTo(200L);
+        verify(domainEventPublisher).publish(any(DomainEvent.class));
     }
 }

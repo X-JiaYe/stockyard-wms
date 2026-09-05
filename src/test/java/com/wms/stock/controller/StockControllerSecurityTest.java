@@ -10,6 +10,7 @@ import com.wms.system.security.AuthContext;
 import com.wms.system.security.JwtAuthenticationFilter;
 import com.wms.system.security.JwtUtil;
 import com.wms.system.security.SecurityConfig;
+import com.wms.system.security.TokenBlacklistService;
 import com.wms.system.security.UserDetailsServiceImpl;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,9 @@ class StockControllerSecurityTest {
 
     @MockBean
     private UserDetailsServiceImpl userDetailsService;
+
+    @MockBean
+    private TokenBlacklistService tokenBlacklistService;
 
     private String body(long warehouseId) throws Exception {
         return objectMapper.writeValueAsString(Map.of(

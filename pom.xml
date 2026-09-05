@@ -64,6 +64,18 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <!-- 缓存：Redis（JWT 黑名单，登出即时失效） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- 消息：RabbitMQ（出入库完成领域事件投递，ERP/WCS 异步消费） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
         <!-- 安全：Spring Security + JWT -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

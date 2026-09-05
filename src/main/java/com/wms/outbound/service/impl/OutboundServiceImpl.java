@@ -2,6 +2,8 @@ package com.wms.outbound.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.wms.common.event.DomainEvent;
+import com.wms.common.event.DomainEventPublisher;
 import com.wms.common.exception.BizException;
 import com.wms.common.result.PageResult;
 import com.wms.outbound.dto.OrderCreateRequest;
@@ -28,6 +30,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -41,6 +44,7 @@ public class OutboundServiceImpl implements OutboundService {
     private final OutboundOrderLineMapper orderLineMapper;
     private final StockService stockService;
     private final AuthContext authContext;
+    private final DomainEventPublisher domainEventPublisher;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -155,6 +159,10 @@ public class OutboundServiceImpl implements OutboundService {
         update.setStatus(OutboundStatus.SHIPPED.getValue());
         orderMapper.updateById(update);
         order.setStatus(OutboundStatus.SHIPPED.getValue());
+
+        // 发运完成 → 领域事件（事务提交后投递 MQ，通知 ERP 出库完成）
+        domainEventPublisher.publish(DomainEvent.of("outbound.shipped", order.getWarehouseId(), order.getOrderNo(),
+                Map.of("orderId", order.getId())));
         return order;
     }
 
