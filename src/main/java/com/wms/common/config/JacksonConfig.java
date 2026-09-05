@@ -20,7 +20,7 @@ public class JacksonConfig {
     @Bean
     public Jackson2ObjectMapperBuilderCustomizer jacksonCustomizer() {
         return builder -> builder
-                .serializers(new LocalDateTimeSerializer(FORMATTER))
-                .deserializers(new LocalDateTimeDeserializer(FORMATTER));
+                .serializerByType(LocalDateTime.class, new LocalDateTimeSerializer(FORMATTER))
+                .deserializerByType(LocalDateTime.class, new LocalDateTimeDeserializer(FORMATTER));
     }
 }
