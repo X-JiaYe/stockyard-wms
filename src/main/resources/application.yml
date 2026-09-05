@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: wms
+  datasource:
+    url: jdbc:postgresql://localhost:5432/wms
+    username: wms
+    password: wms123456
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+    db-config:
+      id-type: assign_id   # 雪花 ID，分布式安全
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    com.wms: debug
+
+# JWT 配置（生产环境请改用环境变量注入，勿硬编码明文密钥）
+wms:
+  jwt:
+    secret: wmsDevJwtSecretKey_2026_changeMeInProduction_9f3a2b1c
+    expire-seconds: 7200

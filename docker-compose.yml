@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: wms-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wms
+      POSTGRES_PASSWORD: wms123456
+      POSTGRES_DB: wms
+      TZ: Asia/Shanghai
+    ports:
+      - "5432:5432"
+    volumes:
+      - wms_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wms -d wms"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    container_name: wms-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - wms_redis_data:/data
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: wms-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: wms
+      RABBITMQ_DEFAULT_PASS: wms123456
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - wms_rabbitmq_data:/var/lib/rabbitmq
+
+volumes:
+  wms_pg_data:
+  wms_redis_data:
+  wms_rabbitmq_data:
