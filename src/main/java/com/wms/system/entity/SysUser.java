@@ -23,4 +23,7 @@ public class SysUser extends BaseEntity {
 
     /** 状态：1启用 0停用 */
     private Integer status;
+
+    /** 所属仓库（NULL=管理员全局） */
+    private Long warehouseId;
 }

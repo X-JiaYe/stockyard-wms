@@ -19,6 +19,7 @@ import com.wms.stock.dto.StockChangeRequest;
 import com.wms.stock.enums.RefType;
 import com.wms.stock.enums.StockDirection;
 import com.wms.stock.service.StockService;
+import com.wms.system.security.AuthContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,10 +40,12 @@ public class OutboundServiceImpl implements OutboundService {
     private final OutboundOrderMapper orderMapper;
     private final OutboundOrderLineMapper orderLineMapper;
     private final StockService stockService;
+    private final AuthContext authContext;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public OutboundOrder createOrder(OrderCreateRequest req) {
+        authContext.checkWarehouse(req.getWarehouseId());
         OutboundOrder order = new OutboundOrder();
         order.setOrderNo(genOrderNo());
         order.setWarehouseId(req.getWarehouseId());
@@ -65,6 +68,7 @@ public class OutboundServiceImpl implements OutboundService {
 
     @Override
     public PageResult<OutboundOrder> queryOrders(Long warehouseId, Integer status, long pageNum, long pageSize) {
+        warehouseId = authContext.scopeWarehouse(warehouseId);
         LambdaQueryWrapper<OutboundOrder> qw = new LambdaQueryWrapper<>();
         if (warehouseId != null) {
             qw.eq(OutboundOrder::getWarehouseId, warehouseId);
@@ -82,6 +86,7 @@ public class OutboundServiceImpl implements OutboundService {
         if (order == null) {
             throw new BizException("订单不存在");
         }
+        authContext.checkWarehouse(order.getWarehouseId());
         List<OutboundOrderLine> lines = orderLineMapper.selectList(
                 new LambdaQueryWrapper<OutboundOrderLine>()
                         .eq(OutboundOrderLine::getOrderId, id)
@@ -108,6 +113,7 @@ public class OutboundServiceImpl implements OutboundService {
         if (order == null) {
             throw new BizException("订单不存在");
         }
+        authContext.checkWarehouse(order.getWarehouseId());
 
         // 扣库存（先记账后聚合，与订单更新同事务；库存不足由 StockService 抛出）
         StockChangeRequest change = new StockChangeRequest();
@@ -136,6 +142,7 @@ public class OutboundServiceImpl implements OutboundService {
         if (order == null) {
             throw new BizException("订单不存在");
         }
+        authContext.checkWarehouse(order.getWarehouseId());
         List<OutboundOrderLine> lines = orderLineMapper.selectList(
                 new LambdaQueryWrapper<OutboundOrderLine>().eq(OutboundOrderLine::getOrderId, order.getId()));
         boolean allPicked = lines.stream()

@@ -15,6 +15,7 @@ import com.wms.stock.enums.StockDirection;
 import com.wms.stock.mapper.StockBalanceMapper;
 import com.wms.stock.mapper.StockLedgerMapper;
 import com.wms.stock.service.StockService;
+import com.wms.system.security.AuthContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,10 +34,12 @@ public class StockServiceImpl implements StockService {
 
     private final StockLedgerMapper stockLedgerMapper;
     private final StockBalanceMapper stockBalanceMapper;
+    private final AuthContext authContext;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public StockBalance changeStock(StockChangeRequest req) {
+        authContext.checkWarehouse(req.getWarehouseId());
         BigDecimal delta = req.getQuantity();
         if (delta == null || delta.compareTo(BigDecimal.ZERO) == 0) {
             throw new BizException("变动数量不能为 0");
@@ -86,6 +89,7 @@ public class StockServiceImpl implements StockService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void move(StockMoveRequest req) {
+        authContext.checkWarehouse(req.getWarehouseId());
         String lotNo = normLot(req.getLotNo());
         // 出源货位
         StockChangeRequest out = new StockChangeRequest();
@@ -115,6 +119,7 @@ public class StockServiceImpl implements StockService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public StockBalance count(StockCountRequest req) {
+        authContext.checkWarehouse(req.getWarehouseId());
         String lotNo = normLot(req.getLotNo());
         // 锁定读当前结存，消除盘点与出入库并发下的 TOCTOU 竞态
         StockBalance locked = lockBalance(req.getWarehouseId(), req.getSkuId(), lotNo, req.getLocationId());
@@ -138,6 +143,7 @@ public class StockServiceImpl implements StockService {
     @Override
     public PageResult<StockBalance> queryBalances(Long warehouseId, Long skuId, String lotNo,
                                                   Long locationId, long pageNum, long pageSize) {
+        warehouseId = authContext.scopeWarehouse(warehouseId);
         LambdaQueryWrapper<StockBalance> qw = new LambdaQueryWrapper<>();
         if (warehouseId != null) {
             qw.eq(StockBalance::getWarehouseId, warehouseId);
@@ -158,6 +164,7 @@ public class StockServiceImpl implements StockService {
     @Override
     public PageResult<StockLedger> queryLedgers(Long warehouseId, Long skuId, String refType,
                                                 String refNo, long pageNum, long pageSize) {
+        warehouseId = authContext.scopeWarehouse(warehouseId);
         LambdaQueryWrapper<StockLedger> qw = new LambdaQueryWrapper<>();
         if (warehouseId != null) {
             qw.eq(StockLedger::getWarehouseId, warehouseId);
@@ -177,6 +184,7 @@ public class StockServiceImpl implements StockService {
 
     @Override
     public RecalculateResult recalculate(Long warehouseId, Long skuId, String lotNo, Long locationId) {
+        authContext.checkWarehouse(warehouseId);
         String l = normLot(lotNo);
         BigDecimal ledgerSum = stockLedgerMapper.sumQuantity(warehouseId, skuId, l, locationId);
         StockBalance bal = stockBalanceMapper.selectOne(new LambdaQueryWrapper<StockBalance>()

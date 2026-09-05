@@ -6,6 +6,7 @@ import com.wms.base.entity.Location;
 import com.wms.base.service.LocationService;
 import com.wms.common.result.PageResult;
 import com.wms.common.result.Result;
+import com.wms.system.security.AuthContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,12 +16,14 @@ import org.springframework.web.bind.annotation.*;
 public class LocationController {
 
     private final LocationService locationService;
+    private final AuthContext authContext;
 
     @GetMapping
     public Result<PageResult<Location>> page(@RequestParam(defaultValue = "1") long pageNum,
                                              @RequestParam(defaultValue = "10") long pageSize,
                                              @RequestParam(required = false) Long warehouseId,
                                              @RequestParam(required = false) Long zoneId) {
+        warehouseId = authContext.scopeWarehouse(warehouseId);
         LambdaQueryWrapper<Location> qw = new LambdaQueryWrapper<>();
         if (warehouseId != null) {
             qw.eq(Location::getWarehouseId, warehouseId);
@@ -34,17 +37,23 @@ public class LocationController {
 
     @GetMapping("/{id}")
     public Result<Location> get(@PathVariable Long id) {
-        return Result.ok(locationService.getById(id));
+        Location location = locationService.getById(id);
+        if (location != null) {
+            authContext.checkWarehouse(location.getWarehouseId());
+        }
+        return Result.ok(location);
     }
 
     @PostMapping
     public Result<Void> create(@RequestBody Location location) {
+        authContext.requireAdmin();
         locationService.save(location);
         return Result.ok();
     }
 
     @PutMapping("/{id}")
     public Result<Void> update(@PathVariable Long id, @RequestBody Location location) {
+        authContext.requireAdmin();
         location.setId(id);
         locationService.updateById(location);
         return Result.ok();
@@ -52,6 +61,7 @@ public class LocationController {
 
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
+        authContext.requireAdmin();
         locationService.removeById(id);
         return Result.ok();
     }

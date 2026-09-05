@@ -22,6 +22,7 @@ import com.wms.stock.dto.StockChangeRequest;
 import com.wms.stock.enums.RefType;
 import com.wms.stock.enums.StockDirection;
 import com.wms.stock.service.StockService;
+import com.wms.system.security.AuthContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,10 +44,12 @@ public class InboundServiceImpl implements InboundService {
     private final InboundAsnLineMapper asnLineMapper;
     private final InboundReceiveMapper receiveMapper;
     private final StockService stockService;
+    private final AuthContext authContext;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public InboundAsn createAsn(AsnCreateRequest req) {
+        authContext.checkWarehouse(req.getWarehouseId());
         InboundAsn asn = new InboundAsn();
         asn.setAsnNo(genAsnNo());
         asn.setWarehouseId(req.getWarehouseId());
@@ -71,6 +74,7 @@ public class InboundServiceImpl implements InboundService {
 
     @Override
     public PageResult<InboundAsn> queryAsns(Long warehouseId, Integer status, long pageNum, long pageSize) {
+        warehouseId = authContext.scopeWarehouse(warehouseId);
         LambdaQueryWrapper<InboundAsn> qw = new LambdaQueryWrapper<>();
         if (warehouseId != null) {
             qw.eq(InboundAsn::getWarehouseId, warehouseId);
@@ -88,6 +92,7 @@ public class InboundServiceImpl implements InboundService {
         if (asn == null) {
             throw new BizException("ASN 不存在");
         }
+        authContext.checkWarehouse(asn.getWarehouseId());
         List<InboundAsnLine> lines = asnLineMapper.selectList(
                 new LambdaQueryWrapper<InboundAsnLine>()
                         .eq(InboundAsnLine::getAsnId, id)
@@ -119,6 +124,7 @@ public class InboundServiceImpl implements InboundService {
         if (asn == null) {
             throw new BizException("ASN 不存在");
         }
+        authContext.checkWarehouse(asn.getWarehouseId());
 
         // 记录收货明细
         InboundReceive receive = new InboundReceive();
@@ -157,6 +163,7 @@ public class InboundServiceImpl implements InboundService {
         if (asn == null) {
             throw new BizException("ASN 不存在");
         }
+        authContext.checkWarehouse(asn.getWarehouseId());
 
         // 落库存（先记账后聚合，与入库单更新同事务）
         StockChangeRequest change = new StockChangeRequest();
