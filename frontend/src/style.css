@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-canvas text-ink font-sans;
+    font-feature-settings: 'tnum' on, 'lnum' on;
+  }
+}
+
+@layer components {
+  /* 页面标题：大而克制的标题，不用全大写眉题 */
+  .page-title {
+    @apply text-[26px] font-semibold tracking-tight text-ink leading-tight;
+  }
+  .page-sub {
+    @apply text-sm text-muted mt-1;
+  }
+  /* 卡片：白底、细描边、轻阴影 */
+  .panel {
+    @apply bg-surface border border-line rounded-2xl shadow-card;
+  }
+  .panel-pad {
+    @apply p-6;
+  }
+  /* 表单控件 */
+  .field-label {
+    @apply block text-sm font-medium text-ink mb-1.5;
+  }
+  .input {
+    @apply w-full h-10 px-3.5 rounded-lg border border-lineStrong bg-surface text-sm text-ink
+           placeholder:text-muted outline-none transition
+           focus:border-accent focus:ring-4 focus:ring-accent/10;
+  }
+  .select {
+    @apply input appearance-none pr-9 cursor-pointer;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-lg text-sm font-medium
+           transition select-none whitespace-nowrap;
+  }
+  .btn-primary {
+    @apply btn bg-accent text-white hover:bg-accent-hover active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none;
+  }
+  .btn-secondary {
+    @apply btn bg-surface text-ink border border-lineStrong hover:bg-canvas active:scale-[0.98];
+  }
+  .btn-ghost {
+    @apply btn text-accent hover:bg-accent/5;
+  }
+  /* 表格 */
+  .table {
+    @apply w-full text-sm text-left;
+  }
+  .table thead th {
+    @apply text-xs font-medium text-muted font-normal px-4 py-3 border-b border-line;
+  }
+  .table tbody td {
+    @apply px-4 py-3 border-b border-line align-middle;
+  }
+  .table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+  .table tbody tr {
+    @apply hover:bg-canvas/60 transition-colors;
+  }
+  /* 主数值：等宽数字，突出但不花哨 */
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+}

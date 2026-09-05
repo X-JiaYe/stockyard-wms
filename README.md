@@ -13,10 +13,13 @@
 | ORM | MyBatis-Plus 3.5 | 雪花主键、逻辑删除、Lambda 条件 |
 | 数据库 | PostgreSQL 15 | Flyway 版本化迁移 |
 | 安全 | Spring Security + JWT | 无状态认证 + RBAC + 方法级权限 |
+| 缓存 | Redis 7 | JWT 黑名单（登出即时失效） |
+| 消息 | RabbitMQ 3.13 | 出入库完成领域事件投递，ERP/WCS 异步消费 |
 | 架构守卫 | ArchUnit | 固化模块边界 |
+| 前端 | Vue3 + Vite + Tailwind | 单页应用，Apple 风格设计 |
 | 测试 | JUnit 5 + Mockito + MockMvc | 单元 / 集成 / 架构三层 |
 
-> Redis / RabbitMQ 已在 `docker-compose.yml` 预留，代码尚未接入（按需启用，不强行堆中间件）。
+> 中间件「按需接入、各有其职」：Redis 补无状态 JWT 无法主动失效的缺口，RabbitMQ 解耦出入库完成通知；二者不可用时均不阻断核心出入库链路（见「核心设计」）。
 
 ## 架构
 
@@ -67,6 +70,16 @@
 
 - `ArchitectureTest` 固化三类规则：禁跨域引用 service 实现、Controller 不直连 Mapper、模块无环依赖。破坏边界 → 测试失败。
 
+### 5. JWT 黑名单（登出即时失效）
+
+- 无状态 JWT 的天然短板是「签出后无法主动吊销」。签发时写入 `jti`（唯一标识），登出接口把 `jti` 写入 Redis，TTL 与 token 剩余有效期一致；校验过滤器命中黑名单即拒绝。
+- **降级策略**：Redis 不可用时「fail-open」，核心链路不因缓存故障中断，代价是极端情况下登出有短暂失效窗口。
+
+### 6. 领域事件与 MQ 解耦
+
+- 上架落库存 / 出库发运完成后发布 `DomainEvent`，经 `@TransactionalEventListener(AFTER_COMMIT)` 在事务提交后才投递 RabbitMQ，规避「MQ 已发但本地事务回滚」的不一致。
+- 消费端模拟 ERP/WCS 适配器异步订阅；投递失败仅告警、不阻断主流程（通知型事件，可靠性由 MQ 持久化 + 消费重试兜底）。
+
 ## 数据库
 
 核心表：`warehouse / zone / location / sku`（主数据）、`stock_ledger / stock_balance`（库存）、`inbound_asn / asn_line / receive`（入库）、`outbound_order / order_line`（出库）、`sys_user / sys_role / sys_permission / sys_user_role / sys_role_permission`（权限）。
@@ -76,22 +89,23 @@
 ## 快速开始
 
 ```bash
-# 1. 启动 PostgreSQL（Redis/RabbitMQ 一并预留）
-docker compose up -d postgres
+# 1. 启动依赖（PostgreSQL + Redis + RabbitMQ）
+docker compose up -d postgres redis rabbitmq
 
-# 2. 启动应用（JDK 21 + Maven）
+# 2. 启动后端（JDK 21 + Maven）
 mvn spring-boot:run
 
-# 3. 运行测试
-mvn test
+# 3.（可选）启动前端
+cd frontend && npm install && npm run dev
 ```
 
-- 服务地址：`http://localhost:8080/api`
-- 首次启动 Flyway 自动建表并写入示例数据，默认账号 `admin / admin123`
+- 后端服务：`http://localhost:8080/api`
+- 前端界面：`http://localhost:5173`（开发期 `/api` 已代理到 8080）
+- 首次启动 Flyway 自动建表并写入示例数据（1 仓库 / 15 物料 / 8 货位），默认账号 `admin / admin123`
 
 ## 测试
 
-`mvn test` 共 50+ 用例，三层覆盖：
+`mvn test` 共 60 用例，三层覆盖：
 
 - **单元测试**：库存中枢（防超卖/幂等/盘点/重算）、用户服务（密码加密/角色绑定/仓库校验）。
 - **集成测试**：权限矩阵（未认证 401 / 无权限 403 / 有权限 200）、跨仓越权拦截。
@@ -105,5 +119,5 @@ mvn test
 - [x] M3 入库（ASN → 收货 → 上架）
 - [x] M4 出库（订单 → 拣货 → 发运）
 - [x] 安全加固（多仓隔离 / 越权防护 / 方法级权限 / 架构守卫）
-- [ ] M5 集成（ERP 适配 + WCS + MQ 事件）
-- [ ] 前端 Vue3
+- [x] M5 集成（Redis JWT 黑名单 + RabbitMQ 领域事件 → ERP/WCS 异步消费）
+- [x] 前端 Vue3（登录 / 概览 / 库存 / 入库 / 出库 / 物料 / 用户）
